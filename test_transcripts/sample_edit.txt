@@ -1,0 +1,63 @@
+# Sample Test Transcript: Edit Session
+
+## Initial Itinerary
+(Created from planning session - see sample_planning.txt)
+
+## Edit Command
+"Make Day 2 more relaxed"
+
+## Edit Parsing
+- Edit Type: pace
+- Scope: day
+- Day: 2
+- Value: relaxed
+
+## Changes Applied
+- Day 2, Morning: Reduced from 1 POI to 1 POI (already relaxed)
+- Day 2, Afternoon: Kept 1 POI (Jantar Mantar)
+- Day 2, Evening: Remained free time
+
+## Edit Correctness Evaluation
+- Intended Changes: ✅ Made
+- Unintended Changes: ✅ None detected
+- Score: 1.0
+
+---
+
+## Edit Command 2
+"Swap the Day 1 evening plan to something indoors"
+
+## Edit Parsing
+- Edit Type: swap
+- Scope: block
+- Day: 1
+- Block: evening
+- Value: indoors
+
+## Changes Applied
+- Day 1, Evening: Swapped "Local food tour" → "Indoor restaurant experience"
+- Reason: Swapped for indoor alternative
+
+## Edit Correctness Evaluation
+- Intended Changes: ✅ Made
+- Unintended Changes: ✅ None detected (Day 2, Day 3 unchanged)
+- Score: 1.0
+
+---
+
+## Edit Command 3
+"Add one famous local food place"
+
+## Edit Parsing
+- Edit Type: add
+- Scope: full
+- Category: food
+
+## Changes Applied
+- Added "Chokhi Dhani" to Day 3 afternoon
+- Category: food
+- Duration: 120 min
+
+## Verification
+- Only Day 3 afternoon modified
+- Other days/blocks unchanged

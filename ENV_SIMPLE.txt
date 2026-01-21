@@ -1,0 +1,27 @@
+# ============================================
+# SIMPLE .env FILE - Just Groq & Gemini
+# ============================================
+
+# Groq - FIRST PRIORITY (Fast & Free!)
+GROQ_API_KEY=your_groq_api_key_here
+GROQ_MODEL=llama-3.1-70b-versatile
+
+# Gemini - SECOND PRIORITY (Fallback)
+GEMINI_API_KEY=your_gemini_key_here
+GEMINI_MODEL=gemini-pro
+
+# Backend Config
+BACKEND_PORT=8000
+TARGET_CITY=Jaipur
+
+
+# ============================================
+# HOW TO USE THIS FILE
+# ============================================
+# 1. Copy this entire content
+# 2. Create/edit .env file:
+#    nano .env
+# 3. Paste this content
+# 4. Add your Gemini key (if you have one)
+# 5. Save: Ctrl+X, Y, Enter
+# 6. Restart backend: cd backend && python3 main.py

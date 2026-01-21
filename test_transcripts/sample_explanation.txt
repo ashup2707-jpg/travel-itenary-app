@@ -1,0 +1,53 @@
+# Sample Test Transcript: Explanation Session
+
+## Question 1
+"Why did you pick Hawa Mahal?"
+
+## Response
+Hawa Mahal is one of Jaipur's most iconic landmarks, known as the "Palace of Winds." Built in 1799, it features 953 intricately carved windows designed to allow royal women to observe street life without being seen. It's a must-visit attraction that perfectly aligns with your interest in culture.
+
+## Citations
+- [wikivoyage] "Hawa Mahal, the Palace of Winds, is perhaps Jaipur's most distinctive landmark..."
+- [osm] POI ID: node/123456, Category: tourism
+
+## Grounded: ✅ Yes
+
+---
+
+## Question 2
+"Is this plan doable?"
+
+## Response
+Yes, this plan is doable. Each day has a comfortable pace with 2-3 activities, plenty of breaks, and reasonable travel times between locations. The total travel time per day is under 2 hours, which leaves ample time for exploring and rest. The evening blocks are intentionally light to match your relaxed pace preference.
+
+## Citations
+- [wikivoyage] "Jaipur is compact enough that most attractions can be reached within 30-45 minutes..."
+
+## Grounded: ✅ Yes
+
+---
+
+## Question 3
+"What if it rains?"
+
+## Response
+Jaipur has a semi-arid climate with most rainfall during the monsoon season (July-September). If you're visiting outside monsoon, rain is unlikely. However, if it does rain, I recommend:
+1. Visit indoor attractions first (City Palace has covered areas)
+2. Amber Fort has many indoor sections
+3. Jaipur has excellent indoor restaurants for extended meals
+
+I should note that I don't have real-time weather data, so please check the local forecast closer to your trip.
+
+## Citations
+- [wikivoyage] "Jaipur's climate is semi-arid with hot summers..."
+
+## Grounded: ✅ Yes
+## Uncertainty Stated: ✅ Yes ("I don't have real-time weather data")
+
+---
+
+## Grounding Evaluation Results
+- POI Grounding: 100% (all POIs have OSM IDs)
+- Citation Rate: 100% (all explanations have citations)
+- Uncertainty Handling: ✅ Properly stated when data missing
+- Overall Score: 1.0

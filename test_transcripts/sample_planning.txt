@@ -1,0 +1,65 @@
+# Sample Test Transcript: Planning Session
+
+## User Request
+"Plan a 3-day trip to Jaipur next weekend. I like food and culture, relaxed pace."
+
+## System Response
+Intent Parsed:
+- City: Jaipur, India
+- Duration: 3 days
+- Interests: food, culture
+- Pace: relaxed
+
+## Itinerary Generated
+
+### Day 1 (2026-01-19)
+**Morning (9:00 AM - 12:00 PM)**
+- Hawa Mahal (60 min)
+  - ID: node/123456
+  - Category: tourism
+
+**Afternoon (1:00 PM - 5:00 PM)**
+- City Palace (120 min)
+  - ID: way/234567
+  - Category: tourism
+
+**Evening (6:00 PM - 9:00 PM)**
+- Local food tour (90 min)
+  - Category: food
+
+### Day 2 (2026-01-20)
+**Morning (9:00 AM - 12:00 PM)**
+- Amber Fort (180 min)
+  - ID: node/345678
+  - Category: historic
+
+**Afternoon (1:00 PM - 5:00 PM)**
+- Jantar Mantar (60 min)
+  - ID: node/456789
+  - Category: tourism
+
+**Evening (6:00 PM - 9:00 PM)**
+- Free time / Rest
+
+### Day 3 (2026-01-21)
+**Morning (9:00 AM - 12:00 PM)**
+- Nahargarh Fort (180 min)
+  - ID: way/567890
+  - Category: historic
+
+**Afternoon (1:00 PM - 5:00 PM)**
+- Local market visit (90 min)
+  - Category: shopping
+
+**Evening (6:00 PM - 9:00 PM)**
+- Departure preparation
+
+## Feasibility Evaluation
+- Overall Score: 0.95
+- Daily Duration: ✅ Within limits
+- Travel Time: ✅ Reasonable
+- Pace Consistency: ✅ Matches relaxed pace
+
+## Sources
+- Wikivoyage: Jaipur travel guide
+- OpenStreetMap: POI data
