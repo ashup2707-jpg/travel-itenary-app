@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: travel-planner-backend
+    env: python
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && python3 main.py
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: BACKEND_PORT
+        value: 8000
+      - key: TARGET_CITY
+        value: Jaipur
+      - key: SMTP_SERVER
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+    # Note: Add your API keys in Render dashboard under Environment Variables
