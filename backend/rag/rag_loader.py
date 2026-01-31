@@ -38,43 +38,53 @@ class RAGLoader:
             "errors": []
         }
         
-        # Load curated data for Jaipur
+        # Load curated data for Jaipur (only once to avoid duplicate/ redundant adds)
         if city.lower() in ["jaipur", "jaipur, india"]:
             print(f"📖 Loading curated RAG data for {city}...")
             try:
-                # Check if documents already exist to avoid duplicates
-                existing_count = self.vector_store.collection.count()
-                self.vector_store.add_documents(JAIPUR_RAG_DATA)
-                stats["curated_chunks"] = len(JAIPUR_RAG_DATA)
-                new_count = self.vector_store.collection.count()
-                print(f"   ✅ Loaded {len(JAIPUR_RAG_DATA)} curated chunks (total in store: {new_count})")
+                # Skip if curated data already in store (check by known doc id)
+                marker_id = "jaipur_amer_fort"
+                existing = self.vector_store.collection.get(ids=[marker_id])
+                if existing and existing.get("ids") and len(existing["ids"]) > 0:
+                    print(f"   ⏭️  Curated data already in store, skipping duplicate load")
+                    stats["curated_chunks"] = 0
+                else:
+                    self.vector_store.add_documents(JAIPUR_RAG_DATA)
+                    stats["curated_chunks"] = len(JAIPUR_RAG_DATA)
+                    print(f"   ✅ Loaded {len(JAIPUR_RAG_DATA)} curated chunks")
             except Exception as e:
                 stats["errors"].append(f"Curated data error: {e}")
                 print(f"   ❌ Error loading curated data: {e}")
                 import traceback
                 traceback.print_exc()
         
-        # Also try Wikivoyage for additional data
-        print(f"📖 Loading Wikivoyage data for {city}...")
+        # Also try Wikivoyage for additional data (skip if already loaded for this city)
+        city_key = city.lower().replace(' ', '_').replace(',', '').strip()
+        wv_marker_id = f"wikivoyage_{city_key}_see_0"
         try:
-            guide = self.wikivoyage_scraper.get_city_guide(city.split(',')[0].strip())
-            
-            if "error" in guide:
-                stats["errors"].append(f"Wikivoyage: {guide['error']}")
-                print(f"   ⚠️  Wikivoyage: {guide['error']}")
+            existing_wv = self.vector_store.collection.get(ids=[wv_marker_id])
+            if existing_wv and existing_wv.get("ids") and len(existing_wv["ids"]) > 0:
+                print(f"   ⏭️  Wikivoyage data for {city} already in store, skipping")
             else:
-                chunks = self.wikivoyage_scraper.chunk_by_section(guide)
+                print(f"📖 Loading Wikivoyage data for {city}...")
+                guide = self.wikivoyage_scraper.get_city_guide(city.split(',')[0].strip())
                 
-                # Add unique IDs
-                for i, chunk in enumerate(chunks):
-                    chunk["id"] = f"wikivoyage_{city.lower().replace(' ', '_').replace(',', '')}_{chunk['metadata']['section']}_{i}"
-                
-                if chunks:
-                    self.vector_store.add_documents(chunks)
-                    stats["wikivoyage_chunks"] = len(chunks)
-                    print(f"   ✅ Loaded {len(chunks)} chunks from Wikivoyage")
+                if "error" in guide:
+                    stats["errors"].append(f"Wikivoyage: {guide['error']}")
+                    print(f"   ⚠️  Wikivoyage: {guide['error']}")
                 else:
-                    print(f"   ⚠️  No chunks extracted from Wikivoyage")
+                    chunks = self.wikivoyage_scraper.chunk_by_section(guide)
+                    
+                    # Add unique IDs
+                    for i, chunk in enumerate(chunks):
+                        chunk["id"] = f"wikivoyage_{city_key}_{chunk['metadata']['section']}_{i}"
+                    
+                    if chunks:
+                        self.vector_store.add_documents(chunks)
+                        stats["wikivoyage_chunks"] = len(chunks)
+                        print(f"   ✅ Loaded {len(chunks)} chunks from Wikivoyage")
+                    else:
+                        print(f"   ⚠️  No chunks extracted from Wikivoyage")
         
         except Exception as e:
             stats["errors"].append(f"Wikivoyage error: {e}")

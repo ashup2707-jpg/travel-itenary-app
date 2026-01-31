@@ -67,15 +67,19 @@ class VectorStore:
         self,
         query_text: str,
         n_results: int = 5,
-        filter_metadata: Optional[Dict] = None
+        filter_metadata: Optional[Dict] = None,
+        max_distance: Optional[float] = None
     ) -> List[Dict]:
         """
-        Query vector store for similar documents
+        Query vector store for similar documents.
+        Uses cosine distance: 0 = identical, larger = less similar. Filtering by max_distance
+        keeps only sufficiently relevant results (e.g. max_distance=0.6).
         
         Args:
             query_text: Query string
             n_results: Number of results to return
             filter_metadata: Optional metadata filter (e.g., {"city": "Jaipur"})
+            max_distance: Optional max cosine distance (results with distance > this are dropped)
         
         Returns:
             List of similar documents with metadata and citations
@@ -95,14 +99,17 @@ class VectorStore:
                 where=where
             )
             
-            # Format results
+            # Format results and optionally filter by relevance
             formatted_results = []
             if results.get('documents') and len(results['documents']) > 0 and results['documents'][0]:
                 for i in range(len(results['documents'][0])):
+                    dist = results['distances'][0][i] if results.get('distances') and results['distances'][0] else None
+                    if max_distance is not None and dist is not None and dist > max_distance:
+                        continue
                     formatted_results.append({
                         "text": results['documents'][0][i],
                         "metadata": results['metadatas'][0][i] if results.get('metadatas') and results['metadatas'][0] else {},
-                        "distance": results['distances'][0][i] if results.get('distances') and results['distances'][0] else None,
+                        "distance": dist,
                         "id": results['ids'][0][i] if results.get('ids') and results['ids'][0] else None
                     })
             

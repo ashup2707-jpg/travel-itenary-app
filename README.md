@@ -28,6 +28,14 @@ All required components implemented and working.
 - **Voice:** Web Speech API (browser-based, free)
 - **Email:** SMTP (Gmail, Outlook, etc.)
 
+## Documentation (evaluators start here)
+
+**→ [docs/00_EVALUATOR_START_HERE.md](docs/00_EVALUATOR_START_HERE.md)** — Navigation for evaluators and quick links by criterion.  
+**→ Where each judging parameter is implemented: [docs/JUDGING_CRITERIA.md](docs/JUDGING_CRITERIA.md)**  
+**→ How to run evals and iterate: [docs/EVALS_ITERATION.md](docs/EVALS_ITERATION.md)**  
+**→ Local run and Loom checklist: [docs/RUN_LOCALLY.md](docs/RUN_LOCALLY.md)**  
+**→ All docs:** [docs/](docs/) (ARCHITECTURE, API_AND_ENDPOINTS, ENV_SETUP, DEPLOYMENT, VERCEL_DEPLOYMENT, RENDER_ENV_SETUP).
+
 ## Quick Start
 
 ### 1. Backend Setup
@@ -39,7 +47,7 @@ pip3 install -r requirements.txt
 
 ### 2. Create .env File
 
-Create a `.env` file in the project root with the following configuration:
+Create a `.env` file in the **project root** (parent of `backend` and `frontend`). See **[docs/ENV_SETUP.md](docs/ENV_SETUP.md)** for full variables and where to get keys. Minimal example:
 
 ```bash
 # =============================================================================

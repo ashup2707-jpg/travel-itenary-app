@@ -93,11 +93,15 @@ async def root():
         "message": "Voice-First Travel Planning Assistant API",
         "status": "running",
         "version": "1.0.0",
+        "mcp_tools": ["POI Search (OpenStreetMap)", "Itinerary Builder (time blocks, feasibility)"],
         "endpoints": {
             "planning": "/api/plan",
             "edit": "/api/edit",
             "explain": "/api/explain",
-            "evaluations": "/api/eval/*"
+            "send_email": "/api/send-email",
+            "itinerary": "/api/itinerary",
+            "reset": "/api/reset",
+            "evaluations": "/api/eval/feasibility, /api/eval/edit, /api/eval/grounding, /api/eval/all"
         }
     }
 
@@ -105,6 +109,23 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+
+@app.get("/health/ready")
+async def readiness_check():
+    """Check if app is ready for demo: backend, LLM, and optional email."""
+    llm_configured = bool(
+        os.getenv("GROQ_API_KEY") or os.getenv("GEMINI_API_KEY") or
+        os.getenv("OPENAI_API_KEY") or os.getenv("ANTHROPIC_API_KEY") or
+        os.getenv("GROK_API_KEY") or os.getenv("XAI_API_KEY")
+    )
+    return {
+        "status": "healthy",
+        "ready_for_demo": llm_configured,
+        "llm_configured": llm_configured,
+        "email_configured": email_sender is not None,
+        "message": "Ready for Loom" if llm_configured else "Add GROQ_API_KEY or GEMINI_API_KEY to .env for planning"
+    }
 
 
 @app.post("/api/plan")
@@ -116,9 +137,10 @@ async def create_plan(request: PlanRequest):
         result = pipeline.handle_user_input(request.user_input)
         
         if result["action"] == "itinerary":
-            # Store current state
+            # Store current state (pois used for grounding eval)
             current_state["itinerary"] = result["itinerary"]
             current_state["constraints"] = pipeline.collected_constraints
+            current_state["pois"] = result.get("pois", [])
         
         return result
     except Exception as e:
@@ -153,14 +175,17 @@ async def edit_plan(request: EditRequest):
 @app.post("/api/explain")
 async def explain_plan(request: ExplainRequest):
     """
-    Answer questions about the plan
+    Answer questions about the plan (e.g. "Why did you pick this place?", "Is this plan doable?", "What if it rains?").
+    Uses RAG + itinerary for grounded answers; fallback to RAG-only if LLM fails.
     """
     try:
-        result = pipeline.explain(request.question)
-        
-        # Store explanation for grounding eval
+        result = pipeline.explain(
+            request.question,
+            itinerary=current_state.get("itinerary")
+        )
+        if result.get("action") == "error":
+            return result
         current_state["explanations"].append(result)
-        
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -308,12 +333,10 @@ async def send_itinerary_email(request: EmailRequest):
             recipient_emails=recipient_emails,
             subject=request.subject
         )
-        
+        # Return result body so frontend can show specific error (auth vs connection vs smtp)
         if result["success"]:
             return result
-        else:
-            raise HTTPException(status_code=500, detail=result["message"])
-            
+        return JSONResponse(status_code=200, content=result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
 

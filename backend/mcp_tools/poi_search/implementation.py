@@ -80,11 +80,13 @@ class POISearchMCP:
             limit=50
         )
         
-        # Filter by constraints
+        # Filter by constraints (fall back to unfiltered only if constraints remove everything)
         filtered_pois = self._apply_constraints(pois_raw, constraints)
+        if not filtered_pois and pois_raw:
+            filtered_pois = pois_raw
         
-        # Rank POIs (simple ranking by category match)
-        ranked_pois = self._rank_pois(filtered_pois, interests)
+        # Rank POIs (prefer known names for better RAG match, then shuffle for variety)
+        ranked_pois = self._rank_pois(filtered_pois, interests, city)
         
         # Convert to POI schema
         pois = []
@@ -126,11 +128,28 @@ class POISearchMCP:
         
         return filtered
     
-    def _rank_pois(self, pois: List[Dict], interests: List[str]) -> List[Dict]:
-        """Simple ranking by interest match"""
-        # Shuffle to avoid identical ordering each request
-        random.shuffle(pois)
-        return pois
+    # Well-known POI names (curated/RAG) to rank higher when present
+    _PREFERRED_NAMES = frozenset({
+        "amer fort", "amber fort", "hawa mahal", "city palace", "nahargarh fort",
+        "jaigarh fort", "jal mahal", "jantar mantar", "albert hall museum",
+        "birla mandir", "galtaji temple", "johari bazaar", "bapu bazaar",
+        "chokhi dhani", "rambagh palace", "sisodia rani garden", "central park",
+        "ram niwas garden", "tripolia bazaar", "govind dev ji temple"
+    })
+    
+    def _rank_pois(self, pois: List[Dict], interests: List[str], city: str = "") -> List[Dict]:
+        """Rank: prefer known POI names (better RAG match), then shuffle for variety."""
+        preferred = []
+        rest = []
+        for p in pois:
+            name = (p.get("name") or "").strip().lower()
+            if name in self._PREFERRED_NAMES:
+                preferred.append(p)
+            else:
+                rest.append(p)
+        random.shuffle(preferred)
+        random.shuffle(rest)
+        return preferred + rest
     
     def _estimate_duration(self, poi_data: Dict) -> int:
         """Estimate visit duration in minutes"""

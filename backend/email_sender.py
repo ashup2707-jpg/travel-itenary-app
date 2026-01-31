@@ -400,7 +400,7 @@ class EmailSender:
             print(f"Sender: {self.sender_email}")
             print(f"Receiver: {', '.join(recipient_emails)}")
             try:
-                with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+                with smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=15) as server:
                     print("SMTP connection established")
                     server.starttls()
                     print("TLS started")
@@ -426,15 +426,27 @@ class EmailSender:
             }
             
         except smtplib.SMTPAuthenticationError as e:
-            error_msg = f"Email authentication failed: {str(e)}. Check SENDER_PASSWORD in .env file. For Gmail, use an App Password (not your regular password)."
-            print(f"ERROR: {error_msg}")
+            error_msg = (
+                "Email authentication failed. For Gmail: use an App Password "
+                "(Google Account → Security → App passwords), not your regular password. "
+                "Set SENDER_PASSWORD in the backend .env file."
+            )
+            print(f"ERROR: {error_msg} ({e})")
             return {
                 "success": False,
                 "message": error_msg,
                 "error": "authentication_failed"
             }
+        except (OSError, ConnectionError) as e:
+            error_msg = f"Could not connect to email server ({self.smtp_server}:{self.smtp_port}). Check network or try again later."
+            print(f"ERROR: {error_msg} ({e})")
+            return {
+                "success": False,
+                "message": error_msg,
+                "error": "connection_error"
+            }
         except smtplib.SMTPException as e:
-            error_msg = f"SMTP error: {str(e)}"
+            error_msg = f"Email server error: {str(e)}"
             print(f"ERROR: {error_msg}")
             return {
                 "success": False,

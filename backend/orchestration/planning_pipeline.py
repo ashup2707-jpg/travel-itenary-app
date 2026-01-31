@@ -32,6 +32,59 @@ if os.path.exists(env_path):
 else:
     load_dotenv()
 
+# POI name aliases: OSM / display names -> RAG canonical names (for better RAG matching)
+POI_NAME_ALIASES = {
+    "amber fort": "Amer Fort",
+    "amer fort": "Amer Fort",
+    "palace of winds": "Hawa Mahal",
+    "hawa mahal": "Hawa Mahal",
+    "city palace": "City Palace",
+    "jantar mantar": "Jantar Mantar",
+    "jal mahal": "Jal Mahal",
+    "water palace": "Jal Mahal",
+    "nahargarh": "Nahargarh Fort",
+    "nahargarh fort": "Nahargarh Fort",
+    "jaigarh": "Jaigarh Fort",
+    "jaigarh fort": "Jaigarh Fort",
+    "albert hall": "Albert Hall Museum",
+    "albert hall museum": "Albert Hall Museum",
+    "birla mandir": "Birla Mandir",
+    "lakshmi narayan temple": "Birla Mandir",
+    "galtaji": "Galtaji Temple",
+    "galtaji temple": "Galtaji Temple",
+    "monkey temple": "Galtaji Temple",
+    "govind dev ji": "Govind Dev Ji Temple",
+    "govind dev ji temple": "Govind Dev Ji Temple",
+    "johari bazaar": "Johari Bazaar",
+    "johari bazar": "Johari Bazaar",
+    "bapu bazaar": "Bapu Bazaar",
+    "bapu bazar": "Bapu Bazaar",
+    "tripolia bazaar": "Tripolia Bazaar",
+    "tripolia bazar": "Tripolia Bazaar",
+    "chokhi dhani": "Chokhi Dhani",
+    "rambagh palace": "Rambagh Palace",
+    "sisodia rani garden": "Sisodia Rani Garden",
+    "sisodia rani": "Sisodia Rani Garden",
+    "central park": "Central Park",
+    "ram niwas garden": "Ram Niwas Garden",
+    "ram niwas": "Ram Niwas Garden",
+    "laxmi mishthan bhandar": "Jaipur Food Guide",
+    "lmb": "Jaipur Food Guide",
+    "rawat mishthan": "Jaipur Food Guide",
+}
+
+def _normalize_poi_name_for_rag(raw_name: str) -> str:
+    """Normalize POI name for RAG lookup: strip OSM ID prefix, apply aliases."""
+    if not raw_name:
+        return ""
+    # Strip node/way/relation prefix (e.g. "node/123" -> use as-is for display but we need a name)
+    s = str(raw_name).strip()
+    for prefix in ("node/", "way/", "relation/"):
+        if s.lower().startswith(prefix):
+            return s  # Keep OSM ID if no display name; caller may have name separately
+    key = s.lower().strip()
+    return POI_NAME_ALIASES.get(key, s)
+
 class PlanningPipeline:
     """
     Main planning pipeline
@@ -215,68 +268,112 @@ class PlanningPipeline:
                     for block in day.blocks:
                         for poi_block in block.pois:
                             poi_name = poi_block.name or poi_block.poiId
+                            # Normalize for RAG: use canonical name (e.g. Amber Fort -> Amer Fort)
+                            canonical_name = _normalize_poi_name_for_rag(poi_name)
+                            search_names = [poi_name, canonical_name]
+                            search_names = list(dict.fromkeys([s for s in search_names if s]))
                             
                             # Query RAG for this POI - try multiple query variations
                             city_name = city.split(',')[0].strip()
                             rag_results = None
                             
-                            # Try 1: Full descriptive query
-                            rag_query = f"What is {poi_name} in {city_name}? Why should tourists visit?"
-                            rag_results = self.rag_loader.vector_store.query(
-                                query_text=rag_query,
-                                n_results=3
-                            )
+                            # Try 1: Full descriptive query (try canonical name first)
+                            for name in search_names:
+                                rag_query = f"What is {name} in {city_name}? Why should tourists visit?"
+                                rag_results = self.rag_loader.vector_store.query(
+                                    query_text=rag_query,
+                                    n_results=3
+                                )
+                                if rag_results:
+                                    break
                             
                             # Try 2: Simple query with POI and city
                             if not rag_results:
-                                simple_query = f"{poi_name} {city_name}"
-                                rag_results = self.rag_loader.vector_store.query(
-                                    query_text=simple_query,
-                                    n_results=3
-                                )
+                                for name in search_names:
+                                    simple_query = f"{name} {city_name}"
+                                    rag_results = self.rag_loader.vector_store.query(
+                                        query_text=simple_query,
+                                        n_results=3
+                                    )
+                                    if rag_results:
+                                        break
                             
                             # Try 3: Just POI name
                             if not rag_results:
-                                poi_only_query = poi_name
-                                rag_results = self.rag_loader.vector_store.query(
-                                    query_text=poi_only_query,
-                                    n_results=3
-                                )
+                                for name in search_names:
+                                    rag_results = self.rag_loader.vector_store.query(
+                                        query_text=name,
+                                        n_results=3
+                                    )
+                                    if rag_results:
+                                        break
                             
                             # Try 4: Search in metadata by POI name (exact match in metadata)
                             if not rag_results:
-                                # Get all documents and filter by POI name in metadata
                                 try:
-                                    # Query with a very broad query to get all documents, then filter
                                     all_results = self.rag_loader.vector_store.query(
-                                        query_text=city_name,  # Use city name to get all city docs
-                                        n_results=50  # Get more results to filter
+                                        query_text=city_name,
+                                        n_results=50
                                     )
-                                    # Filter by POI name in metadata
+                                    rag_results = []
                                     poi_name_lower = poi_name.lower()
+                                    canonical_lower = canonical_name.lower() if canonical_name else ""
                                     for result in all_results:
                                         result_poi_name = result.get("metadata", {}).get("poi_name", "").lower()
-                                        if poi_name_lower in result_poi_name or result_poi_name in poi_name_lower:
+                                        if (poi_name_lower in result_poi_name or result_poi_name in poi_name_lower or
+                                            (canonical_lower and (canonical_lower in result_poi_name or result_poi_name in canonical_lower))):
                                             rag_results.append(result)
                                             if len(rag_results) >= 3:
                                                 break
                                 except Exception as e:
                                     print(f"   ⚠️  Error in metadata search: {e}")
                             
-                            # Try 5: Try querying with POI name variations
+                            # Try 5: Query with "tourist attraction" / "things to see" for better semantic match
                             if not rag_results:
-                                for variation in [poi_name, poi_name.lower(), poi_name.replace(" ", "").lower(), poi_name.replace("Fort", "").strip(), poi_name.replace("Palace", "").strip()]:
-                                    rag_results = self.rag_loader.vector_store.query(
-                                        query_text=variation,
-                                        n_results=3
-                                    )
+                                for name in search_names:
+                                    for template in [
+                                        f"tourist attraction {name} {city_name}",
+                                        f"things to see {name} {city_name}",
+                                    ]:
+                                        rag_results = self.rag_loader.vector_store.query(
+                                            query_text=template,
+                                            n_results=3
+                                        )
+                                        if rag_results:
+                                            break
+                                    if rag_results:
+                                        break
+                            # Try 6: POI name variations (short names, no Fort/Palace suffix)
+                            if not rag_results:
+                                for name in search_names:
+                                    for variation in [name, name.lower(), name.replace(" ", "").lower(),
+                                                     name.replace("Fort", "").strip(), name.replace("Palace", "").strip()]:
+                                        if not variation:
+                                            continue
+                                        rag_results = self.rag_loader.vector_store.query(
+                                            query_text=variation,
+                                            n_results=3
+                                        )
+                                        if rag_results:
+                                            break
                                     if rag_results:
                                         break
                             
                             if rag_results:
                                 print(f"   ✅ Found RAG data for {poi_name}: {len(rag_results)} results")
-                                # Store description from RAG
-                                rag_descriptions[poi_block.poiId] = rag_results[0]["text"][:200] + "..."
+                                # Prefer result that explicitly mentions this POI (metadata poi_name or text)
+                                best = rag_results[0]
+                                poi_lower = (canonical_name or poi_name).lower()
+                                for r in rag_results:
+                                    meta_poi = (r.get("metadata") or {}).get("poi_name", "").lower()
+                                    if meta_poi and (poi_lower in meta_poi or meta_poi in poi_lower):
+                                        best = r
+                                        break
+                                    if poi_lower and poi_lower in (r.get("text") or "").lower()[:200]:
+                                        best = r
+                                        break
+                                # Store description from best-matching RAG result (280 chars for quality)
+                                rag_descriptions[poi_block.poiId] = best["text"][:280] + ("..." if len(best["text"]) > 280 else "")
                                 
                                 # Collect citations
                                 for result in rag_results:
@@ -304,12 +401,17 @@ class PlanningPipeline:
             # Step 6: Store constraints for this itinerary
             self.collected_constraints = constraints
             
-            # Return success with RAG data
+            # Return success with RAG data and POI list (for grounding eval and API state)
+            pois_for_state = [
+                p.model_dump() if hasattr(p, 'model_dump') else p.dict()
+                for p in poi_results.pois
+            ]
             return {
                 "action": "itinerary",
                 "itinerary": itinerary_result.itinerary.model_dump() if hasattr(itinerary_result.itinerary, 'model_dump') else itinerary_result.itinerary.dict(),
                 "reasoning": itinerary_result.reasoning.model_dump() if hasattr(itinerary_result.reasoning, 'model_dump') else itinerary_result.reasoning.dict(),
                 "poi_count": len(poi_results.pois),
+                "pois": pois_for_state,
                 "message": f"Created {duration}-day itinerary for {city}!",
                 "rag_loaded": True,
                 "rag_citations": rag_citations,
@@ -324,41 +426,73 @@ class PlanningPipeline:
                 "message": f"Error generating itinerary: {e}"
             }
     
-    def explain(self, question: str) -> Dict[str, Any]:
+    def explain(self, question: str, itinerary: Optional[Dict] = None) -> Dict[str, Any]:
         """
-        Answer questions about the itinerary (e.g., "Why did you pick this place?")
-        
-        Args:
-            question: User's question
-        
-        Returns:
-            Explanation with citations
+        Answer questions about the itinerary in a grounded way. Handles:
+        - "Why did you pick this place?" (POI or whole plan)
+        - "Is this plan doable?" (feasibility + RAG)
+        - "What if it rains?" (weather + indoor options)
+        Always returns an answer with citations when possible; falls back to RAG-only if LLM fails.
         """
-        if not self.collected_constraints:
+        if not self.collected_constraints and not itinerary:
             return {
                 "action": "error",
                 "message": "No itinerary to explain. Please create an itinerary first."
             }
         
-        city = self.collected_constraints.get("city", "Unknown")
-        
-        # Check question type
-        question_lower = question.lower()
-        
+        city = (self.collected_constraints or {}).get("city", "Jaipur")
+        itinerary = itinerary or {}
+        question_lower = question.lower().strip()
+
+        # 1) Weather / rain
+        if "rain" in question_lower or ("weather" in question_lower and ("if" in question_lower or "what" in question_lower)):
+            result = self.explanation_generator.explain_weather_impact(city)
+            return self._normalize_explain_response(result)
+        # 2) Doable / feasible
+        if "doable" in question_lower or "feasible" in question_lower or "realistic" in question_lower:
+            result = self.explanation_generator.explain_plan(question, itinerary, city)
+            return self._normalize_explain_response(result)
+        # 3) Why pick / choose / select (this place or general)
         if "why" in question_lower and ("pick" in question_lower or "choose" in question_lower or "select" in question_lower):
-            # Extract POI name if mentioned
-            # For now, explain general selection
-            return self.explanation_generator.explain_plan(question, {}, city)
-        
-        elif "rain" in question_lower or "weather" in question_lower:
-            return self.explanation_generator.explain_weather_impact(city)
-        
-        elif "doable" in question_lower or "feasible" in question_lower:
-            return self.explanation_generator.explain_plan(question, {}, city)
-        
-        else:
-            # General question
-            return self.explanation_generator.explain_plan(question, {}, city)
+            poi_name = self._extract_poi_from_question(question, itinerary)
+            if poi_name:
+                result = self.explanation_generator.explain_poi(poi_name, city)
+                return self._normalize_explain_response(result)
+            # No specific POI: explain selection for the plan (use itinerary + RAG)
+            result = self.explanation_generator.explain_plan(question, itinerary, city)
+            return self._normalize_explain_response(result)
+        # 4) Any other question about the plan
+        result = self.explanation_generator.explain_plan(question, itinerary, city)
+        return self._normalize_explain_response(result)
+
+    def _extract_poi_from_question(self, question: str, itinerary: Dict) -> Optional[str]:
+        """Try to get a POI name from the question or from the itinerary."""
+        # From itinerary: collect POI names for matching
+        poi_names = []
+        for day in (itinerary.get("days") or []):
+            for block in day.get("blocks", []):
+                for p in block.get("pois", []):
+                    name = (p.get("name") or p.get("poiId") or "").strip()
+                    if name and name not in poi_names:
+                        poi_names.append(name)
+        # Check if question mentions one of them (e.g. "why did you pick Hawa Mahal?")
+        q = question.lower()
+        for name in poi_names:
+            if name.lower() in q:
+                return name
+        # Optionally: if only one POI in plan, return it
+        if len(poi_names) == 1:
+            return poi_names[0]
+        return None
+
+    def _normalize_explain_response(self, result: Dict[str, Any]) -> Dict[str, Any]:
+        """Ensure frontend always gets 'answer' and 'citations'."""
+        answer = result.get("answer") or result.get("explanation") or ""
+        citations = result.get("citations") or []
+        out = {"action": "explanation", "answer": answer, "citations": citations, "grounded": result.get("grounded", True)}
+        if result.get("explanation") and "explanation" not in out:
+            out["explanation"] = result["explanation"]
+        return out
     
     def handle_edit(self, edit_command: str, current_itinerary: Dict) -> Dict[str, Any]:
         """

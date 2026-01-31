@@ -368,6 +368,66 @@ JAIPUR_RAG_DATA = [
         "id": "jaipur_safety"
     },
     {
+        "text": """Weather and when to visit Jaipur: Best time is October to March (15-25°C). Summers (April-June) are extremely hot (35-45°C). Monsoon (July-September) brings moderate rainfall; showers are usually short and afternoon thunderstorms are common. If it rains, indoor options include Albert Hall Museum, City Palace museum, Jantar Mantar (partially covered), Birla Mandir, and shopping at Johari Bazaar or Bapu Bazaar. Carry an umbrella and light rain gear in monsoon.""",
+        "metadata": {
+            "city": "Jaipur",
+            "poi_name": "Weather and Best Time",
+            "category": "general",
+            "section": "understand",
+            "source": "rajasthan_tourism",
+            "url": "https://www.tourism.rajasthan.gov.in/jaipur.html",
+            "duration_minutes": 0,
+            "entry_fee": "N/A",
+            "best_time": "October to March"
+        },
+        "id": "jaipur_weather_best_time"
+    },
+    {
+        "text": """What if it rains in Jaipur: Monsoon brings short, heavy showers. Best rainy-day options: Albert Hall Museum (fully indoor, Indo-Saracenic architecture and artifacts), City Palace (indoor museums and courtyards), Birla Mandir (covered temple), Jantar Mantar (some instruments under cover), and covered markets like Johari Bazaar and Bapu Bazaar. Forts like Amer and Nahargarh have covered areas but paths can get slippery. Avoid Galtaji (outdoor) and Jal Mahal viewing in heavy rain. Carry umbrella; many attractions remain open.""",
+        "metadata": {
+            "city": "Jaipur",
+            "poi_name": "Rainy Day Options",
+            "category": "general",
+            "section": "see",
+            "source": "incredible_india",
+            "url": "https://www.incredibleindia.gov.in/en/rajasthan/jaipur",
+            "duration_minutes": 0,
+            "entry_fee": "Varies",
+            "best_time": "Monsoon backup"
+        },
+        "id": "jaipur_rainy_day"
+    },
+    {
+        "text": """Indoor activities in Jaipur: Albert Hall Museum (full indoor), City Palace (museums and galleries), Jantar Mantar (partially covered), Birla Mandir (temple), Govind Dev Ji Temple, shopping at Johari Bazaar and Bapu Bazaar (covered lanes), and heritage hotels like Rambagh Palace for high tea. These are good backups for hot afternoons or rainy days.""",
+        "metadata": {
+            "city": "Jaipur",
+            "poi_name": "Indoor Activities",
+            "category": "general",
+            "section": "do",
+            "source": "tripadvisor",
+            "url": "https://www.tripadvisor.in/Attractions-g304555-Activities-Jaipur",
+            "duration_minutes": 0,
+            "entry_fee": "Varies",
+            "best_time": "Hot or rainy days"
+        },
+        "id": "jaipur_indoor"
+    },
+    {
+        "text": """Is a multi-day Jaipur plan doable: Yes. A 2–3 day plan is realistic. The city is compact; old city attractions (City Palace, Jantar Mantar, Hawa Mahal, markets) can be covered on foot or short rides. Forts (Amer, Jaigarh, Nahargarh) are on the outskirts; allow 30–45 min travel each way. Suggested pacing: 2–3 major sights per day with travel time (e.g. 120 min max travel per day). Full-day taxi (₹1500–2500) makes fort loops efficient. Pace depends on your preference: relaxed (fewer POIs, more breaks) or packed (more sights, less downtime).""",
+        "metadata": {
+            "city": "Jaipur",
+            "poi_name": "Plan Feasibility",
+            "category": "general",
+            "section": "get_around",
+            "source": "rajasthan_tourism",
+            "url": "https://www.tourism.rajasthan.gov.in/jaipur.html",
+            "duration_minutes": 0,
+            "entry_fee": "N/A",
+            "best_time": "N/A"
+        },
+        "id": "jaipur_plan_doable"
+    },
+    {
         "text": """Suggested 3-day Jaipur itinerary: Day 1 - Start early with Amer Fort (3 hours), then Jaigarh Fort (1.5 hours), lunch at LMB restaurant, afternoon at City Palace and Jantar Mantar (2.5 hours), evening at Hawa Mahal and Johari Bazaar. Day 2 - Morning at Nahargarh Fort for views, visit Albert Hall Museum, lunch break, afternoon at Birla Mandir and Galtaji Temple, evening at Chokhi Dhani for dinner and cultural show. Day 3 - Explore Bapu Bazaar and local markets, visit Jal Mahal for photos, relax at Central Park, departure or extend trip.""",
         "metadata": {
             "city": "Jaipur",

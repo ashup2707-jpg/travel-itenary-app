@@ -58,7 +58,6 @@ export default function Home() {
   const recognitionRef = useRef<any>(null);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [email1, setEmail1] = useState('');
-  const [email2, setEmail2] = useState('');
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [emailSuccess, setEmailSuccess] = useState<string | null>(null);
   // Hardcoded emails as per requirement
@@ -67,6 +66,27 @@ export default function Home() {
   const [sources, setSources] = useState<Array<{source: string, type: string}>>([]);
   const [ragCitations, setRagCitations] = useState<Array<any>>([]);
   const [ragDescriptions, setRagDescriptions] = useState<Record<string, string>>({});
+  const [backendReady, setBackendReady] = useState<boolean | null>(null);
+  const [llmConfigured, setLlmConfigured] = useState<boolean | null>(null);
+
+  // Check backend readiness (for Loom / demo)
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const res = await fetch(`${API_URL}/health/ready`);
+        if (cancelled) return;
+        const data = await res.json().catch(() => ({}));
+        setBackendReady(res.ok);
+        setLlmConfigured(!!data?.llm_configured);
+      } catch {
+        if (!cancelled) setBackendReady(false);
+      }
+    };
+    check();
+    const t = setInterval(check, 15000);
+    return () => { cancelled = true; clearInterval(t); };
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -166,12 +186,16 @@ export default function Home() {
         /day\s*(one|two|three|four|five)/.test(lowerInput)
       );
 
-      // Detect if it's a question
+      // Detect if it's a question (explain: why, doable, rain/weather)
       const isQuestion = itinerary && (
         lowerInput.includes('why') ||
         lowerInput.includes('what if') ||
         lowerInput.includes('doable') ||
-        lowerInput.includes('feasible')
+        lowerInput.includes('feasible') ||
+        lowerInput.includes('realistic') ||
+        lowerInput.includes('rain') ||
+        lowerInput.includes('weather') ||
+        lowerInput.includes('is this plan')
       );
 
       let endpoint = '/api/plan';
@@ -315,6 +339,9 @@ export default function Home() {
   };
 
   const handleSendEmail = async () => {
+    const toEmail = email1.trim() || RECEIVER_EMAIL;
+    const emailsToSend = [toEmail];
+
     setIsSendingEmail(true);
     setError(null);
     setEmailSuccess(null);
@@ -324,33 +351,45 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          recipient_emails: [RECEIVER_EMAIL], // Use hardcoded receiver email
+          recipient_emails: emailsToSend,
           subject: 'Your Travel Itinerary from Voyage'
         })
       });
 
-      const result = await response.json();
+      const result = await response.json().catch(() => ({}));
+      const detail = typeof result.detail === 'string' ? result.detail : result.message || 'Failed to send email';
 
       if (response.ok && result.success) {
-        setEmailSuccess(`✅ Itinerary PDF sent successfully to ${RECEIVER_EMAIL}!`);
+        setEmailSuccess(`✅ Itinerary PDF sent to ${emailsToSend.join(', ')}`);
         setTimeout(() => {
           setEmailSuccess(null);
           setShowEmailModal(false);
         }, 3000);
       } else {
-        const errorMsg = result.message || result.detail || 'Failed to send email';
-        console.error('Email sending failed:', errorMsg);
+        let errorMsg = detail;
+        if (response.status === 503) {
+          errorMsg = 'Email is not configured. Add SENDER_PASSWORD (Gmail App Password) to backend .env and restart the backend.';
+        } else if (result.error === 'authentication_failed') {
+          errorMsg = result.message || 'Gmail login failed. Use an App Password in .env (see Google Account → Security → App passwords).';
+        } else if (result.error === 'connection_error') {
+          errorMsg = result.message || 'Could not reach email server. Check network and try again.';
+        }
         setError(errorMsg);
-        setTimeout(() => setError(null), 8000);
+        setTimeout(() => setError(null), 10000);
       }
     } catch (err: any) {
       console.error('Email error:', err);
-      const errorMsg = err.message || 'Failed to send email. Check backend console for details.';
-      setError(`Connection error: ${errorMsg}`);
-      setTimeout(() => setError(null), 8000);
+      setError(err?.message || 'Could not reach backend. Ensure the backend is running and CORS is allowed.');
+      setTimeout(() => setError(null), 10000);
     } finally {
       setIsSendingEmail(false);
     }
+  };
+
+  const handleCloseEmailModal = () => {
+    setShowEmailModal(false);
+    setError(null);
+    setEmailSuccess(null);
   };
 
   return (
@@ -370,6 +409,14 @@ export default function Home() {
               <h1 className="logo-text">Voyage</h1>
             </div>
             <p className="tagline">AI travel planning assistant</p>
+            {backendReady === true && (
+              <div className="status-row">
+                <span className="status-badge connected">● Backend connected</span>
+                {llmConfigured === false && (
+                  <span className="status-badge warning">Add GROQ_API_KEY or GEMINI_API_KEY to .env for planning</span>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="messages-container">
@@ -413,7 +460,7 @@ export default function Home() {
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Type your message or click the mic..."
+              placeholder={isListening ? 'Listening…' : 'Type or click mic to speak…'}
               disabled={isLoading}
               className="chat-input"
             />
@@ -590,23 +637,36 @@ export default function Home() {
 
         {/* Email Modal */}
         {showEmailModal && (
-          <div className="modal-overlay" onClick={() => setShowEmailModal(false)}>
+          <div className="modal-overlay" onClick={handleCloseEmailModal}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <h3>📧 Send Itinerary via Email</h3>
-                <button className="modal-close" onClick={() => setShowEmailModal(false)}>×</button>
+                <button className="modal-close" onClick={handleCloseEmailModal}>×</button>
               </div>
               <div className="modal-body">
                 <p className="modal-description">
-                  Send itinerary as PDF via email
+                  Send your itinerary as a PDF. Optional: enter a different recipient below (default: {RECEIVER_EMAIL}).
                 </p>
                 <div className="email-info">
                   <div className="email-info-row">
                     <strong>From:</strong> {SENDER_EMAIL}
                   </div>
-                  <div className="email-info-row">
-                    <strong>To:</strong> {RECEIVER_EMAIL}
+                  <div className="email-input-row">
+                    <label htmlFor="email-to">To (optional):</label>
+                    <input
+                      id="email-to"
+                      type="email"
+                      placeholder={RECEIVER_EMAIL}
+                      value={email1}
+                      onChange={(e) => setEmail1(e.target.value)}
+                      className="email-input"
+                    />
                   </div>
+                  {!email1.trim() && (
+                    <div className="email-info-row email-default">
+                      <strong>Default To:</strong> {RECEIVER_EMAIL}
+                    </div>
+                  )}
                 </div>
                 {emailSuccess && (
                   <div className="success-message">
@@ -622,7 +682,7 @@ export default function Home() {
               <div className="modal-footer">
                 <button 
                   className="modal-button cancel"
-                  onClick={() => setShowEmailModal(false)}
+                  onClick={handleCloseEmailModal}
                   disabled={isSendingEmail}
                 >
                   Cancel
@@ -632,7 +692,7 @@ export default function Home() {
                   onClick={handleSendEmail}
                   disabled={isSendingEmail}
                 >
-                  {isSendingEmail ? 'Sending PDF...' : 'Send PDF via Email'}
+                  {isSendingEmail ? 'Sending PDF…' : 'Send PDF via Email'}
                 </button>
               </div>
             </div>
@@ -779,6 +839,31 @@ export default function Home() {
           margin: 0;
           font-size: 0.9rem;
           color: #6b7280;
+        }
+
+        .status-row {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          margin-top: 0.5rem;
+          flex-wrap: wrap;
+        }
+
+        .status-badge {
+          font-size: 0.75rem;
+          padding: 0.25rem 0.5rem;
+          border-radius: 999px;
+          font-weight: 500;
+        }
+
+        .status-badge.connected {
+          background: #dcfce7;
+          color: #166534;
+        }
+
+        .status-badge.warning {
+          background: #fef3c7;
+          color: #92400e;
         }
 
         .header-icons {
@@ -1723,6 +1808,42 @@ export default function Home() {
         .email-info-row strong {
           color: #111827;
           margin-right: 8px;
+        }
+
+        .email-input-row {
+          margin: 12px 0;
+        }
+
+        .email-input-row label {
+          display: block;
+          font-size: 0.9rem;
+          font-weight: 600;
+          color: #374151;
+          margin-bottom: 6px;
+        }
+
+        .email-input {
+          width: 100%;
+          padding: 0.6rem 0.75rem;
+          border: 2px solid #e2e8f0;
+          border-radius: 8px;
+          font-size: 1rem;
+          outline: none;
+          transition: border-color 0.2s;
+        }
+
+        .email-input:focus {
+          border-color: #667eea;
+        }
+
+        .email-input::placeholder {
+          color: #94a3b8;
+        }
+
+        .email-default {
+          font-size: 0.85rem;
+          color: #64748b;
+          margin-top: 4px;
         }
 
         .success-message {

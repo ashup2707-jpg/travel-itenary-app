@@ -1,0 +1,19 @@
+# =============================================================================
+# COPY ALL OF THIS INTO A FILE NAMED .env IN THE PROJECT ROOT
+# Project root = same folder that contains "backend" and "frontend"
+# =============================================================================
+# 1. Create or open the file:   Grad Project/.env
+# 2. Replace PASTE_YOUR_GROQ_KEY_HERE with your Groq API key
+# 3. Replace PASTE_YOUR_GMAIL_APP_PASSWORD_HERE with your Gmail App Password (or leave as-is if you skip email)
+# 4. Save the file. Then run backend + frontend (see RUN_LOCALLY.txt)
+# =============================================================================
+
+GROQ_API_KEY=PASTE_YOUR_GROQ_KEY_HERE
+GROQ_MODEL=llama-3.1-70b-versatile
+
+SENDER_PASSWORD=PASTE_YOUR_GMAIL_APP_PASSWORD_HERE
+
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+BACKEND_PORT=8000
+TARGET_CITY=Jaipur

@@ -286,7 +286,9 @@ class OSMClient:
                 
                 result = self.api.query(query)
                 
-                # Process nodes
+                # Process nodes and ways; deduplicate by (name, rounded coords)
+                seen_keys = set()
+                
                 for node in result.nodes:
                     category = (
                         'tourism' if 'tourism' in node.tags else
@@ -297,10 +299,10 @@ class OSMClient:
                         'other'
                     )
                     poi = self._node_to_dict(node, category)
-                    if poi:
+                    if poi and self._dedupe_key(poi) not in seen_keys:
+                        seen_keys.add(self._dedupe_key(poi))
                         pois.append(poi)
                 
-                # Process ways
                 for way in result.ways:
                     category = (
                         'tourism' if 'tourism' in way.tags else
@@ -311,7 +313,8 @@ class OSMClient:
                         'other'
                     )
                     poi = self._way_to_dict(way, category)
-                    if poi:
+                    if poi and self._dedupe_key(poi) not in seen_keys:
+                        seen_keys.add(self._dedupe_key(poi))
                         pois.append(poi)
                 
                 if len(pois) >= limit:
@@ -350,6 +353,14 @@ class OSMClient:
         
         print(f"✅ Returning {len(pois)} POIs for {city}")
         return pois[:limit]
+    
+    def _dedupe_key(self, poi: Dict) -> tuple:
+        """Key for deduplication: (normalized name, rounded lat/lon)."""
+        name = (poi.get("name") or "").strip().lower()
+        coords = poi.get("coordinates", {})
+        lat = round(float(coords.get("lat", 0)), 4)
+        lon = round(float(coords.get("lon", 0)), 4)
+        return (name, lat, lon)
     
     def _node_to_dict(self, node, category: str) -> Optional[Dict]:
         """Convert Overpass node to POI dictionary"""

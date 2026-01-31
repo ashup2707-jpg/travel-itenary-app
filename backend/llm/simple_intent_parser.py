@@ -2,7 +2,7 @@
 Simple rule-based intent parser (fallback when LLM quota exceeded)
 """
 import re
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 
 class SimpleIntentParser:
@@ -54,37 +54,33 @@ class SimpleIntentParser:
             "missing_info": missing_info
         }
     
-    def _extract_city(self, text: str) -> str:
-        """Extract city name from text"""
-        # Common patterns
+    def _extract_city(self, text: str) -> Optional[str]:
+        """Extract city name from text (voice-friendly: handles 'Jaipur India', 'trip to X')"""
+        # Known cities (can be expanded)
+        known_cities = ['jaipur', 'delhi', 'mumbai', 'bangalore', 'goa', 'udaipur', 'agra', 'kolkata', 'chennai', 'hyderabad']
+        # Patterns: "trip to Jaipur", "Jaipur India", "city is Jaipur", "plan Jaipur", "in Jaipur"
         patterns = [
+            r'trip\s+to\s+(\w+)',
+            r'(\w+)\s+india',
             r'city\s+is\s+(\w+)',
             r'to\s+(\w+)',
             r'visit\s+(\w+)',
-            r'trip\s+to\s+(\w+)',
-            r'plan\s+(\w+)',
+            r'plan\s+(?:a\s+)?(?:\d+\s*-\s*day\s+)?(?:trip\s+to\s+)?(\w+)',
             r'in\s+(\w+)',
         ]
-        
-        # Known cities (can be expanded)
-        known_cities = ['jaipur', 'delhi', 'mumbai', 'bangalore', 'goa', 'udaipur', 'agra']
-        
-        # Try patterns first
+        text_lower = text.lower().strip()
         for pattern in patterns:
-            match = re.search(pattern, text)
+            match = re.search(pattern, text_lower, re.IGNORECASE)
             if match:
-                city_name = match.group(1)
+                city_name = match.group(1).lower()
                 if city_name in known_cities:
                     return city_name.capitalize()
-        
-        # Check if any known city is mentioned
         for city in known_cities:
-            if city in text:
+            if city in text_lower:
                 return city.capitalize()
-        
         return None
     
-    def _extract_duration(self, text: str) -> int:
+    def _extract_duration(self, text: str) -> Optional[int]:
         """Extract duration in days from text"""
         # Number word to digit mapping
         number_words = {
@@ -93,12 +89,16 @@ class SimpleIntentParser:
             '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10
         }
         
-        # Patterns for duration
+        # Patterns for duration (voice-friendly: "3 day", "3-day", "three days")
         patterns = [
             r'duration\s+is\s+(\w+)\s+days?',
-            r'(\w+)\s*-?\s*days?',
+            r'(\d+)\s*-\s*day\s+trip',
+            r'(\w+)\s*-\s*days?\s+trip',
+            r'(\w+)\s+days?\s+(?:trip|in|to)',
             r'for\s+(\w+)\s+days?',
             r'(\d+)d\s+trip',
+            r'(\d+)\s+days?',
+            r'(\w+)\s+days?',
         ]
         
         for pattern in patterns:
@@ -158,10 +158,11 @@ if __name__ == "__main__":
     parser = SimpleIntentParser()
     
     test_inputs = [
-        "Lenovo 3D trip to Jaipur",
+        "Plan a 3-day trip to Jaipur",
         "city is Jaipur duration is three days",
         "Plan a 3-day trip to Jaipur. I like food and culture.",
         "3 days in Jaipur",
+        "Jaipur India two days",
     ]
     
     for test_input in test_inputs:
